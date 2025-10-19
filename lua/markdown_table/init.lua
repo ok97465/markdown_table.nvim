@@ -1,16 +1,14 @@
 local state = require("markdown_table.state")
-local highlight = require("markdown_table.highlight")
-local parser = require("markdown_table.parser")
-local aligner = require("markdown_table.align")
 local automations = require("markdown_table.autocmd")
 local creator = require("markdown_table.creator")
-local indicator = require("markdown_table.indicator")
 local column = require("markdown_table.column")
-local buffer = require("markdown_table.buffer")
 local navigation = require("markdown_table.navigation")
+local AlignmentService = require("markdown_table.alignment_service")
+local ui = require("markdown_table.ui")
 
 local M = {}
 local configured = false
+local align_service = AlignmentService.new()
 
 ---Validate the buffer handle and default to current buffer.
 ---@param buf integer|nil
@@ -23,39 +21,13 @@ local function resolve_buffer(buf)
   return target
 end
 
----Update highlights for the provided buffer.
----@param buf integer
-local function refresh_highlight(buf)
-  if not state.is_active(buf) then
-    highlight.clear(buf)
-    return
-  end
-
-  if not state.config().highlight then
-    highlight.clear(buf)
-    return
-  end
-
-  local ranges = nil
-  if buf == vim.api.nvim_get_current_buf() then
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local block = parser.block_at(buf, cursor[1] - 1)
-    if block then
-      ranges = { { start_line = block.start_line, end_line = block.end_line } }
-    end
-  end
-
-  highlight.apply(buf, ranges)
-end
-
 local function post_column_change(buf, was_active)
   if not was_active then
     M.enable(buf)
     return
   end
-
-  refresh_highlight(buf)
-  indicator.show(buf)
+  ui.refresh_highlight(buf)
+  ui.show_indicator(buf)
   state.record_undo_state(buf)
 end
 
@@ -70,18 +42,14 @@ end
 
 local function apply_activation(buf, active)
   state.set_active(buf, active)
-  if active and state.config().highlight then
-    refresh_highlight(buf)
-  else
-    highlight.clear(buf)
-  end
-
   if active then
     automations.activate(buf)
-    indicator.show(buf)
+    ui.refresh_highlight(buf)
+    ui.show_indicator(buf)
   else
     automations.deactivate(buf)
-    indicator.hide(buf)
+    ui.clear_highlight(buf)
+    ui.hide_indicator(buf)
   end
   state.record_undo_state(buf)
 end
@@ -130,10 +98,10 @@ function M.setup(opts)
     -- Re-apply settings for active buffers when configuration changes.
     for _, entry in ipairs(state.current_buffers()) do
       if entry.data.active then
-        refresh_highlight(entry.buf)
-        indicator.show(entry.buf)
+        ui.refresh_highlight(entry.buf)
+        ui.show_indicator(entry.buf)
       else
-        indicator.hide(entry.buf)
+        ui.hide_indicator(entry.buf)
       end
     end
     return
@@ -180,22 +148,35 @@ end
 ---@param buf integer|nil
 function M.align(buf)
   local target = resolve_buffer(buf)
-  local cursor = vim.api.nvim_win_get_cursor(0)
-  local block = parser.block_at(target, cursor[1] - 1)
-  if not block then
-    return false
+  local handled = false
+
+  local function refresh_ui()
+    ui.refresh_highlight(target)
+    ui.show_indicator(target)
   end
 
-  local lines = aligner.align_block(block)
-  if not lines then
-    return false
+  local changed = align_service:align_at_cursor(target, {
+    on_success = function()
+      handled = true
+      refresh_ui()
+    end,
+    on_noop = function(_, _, reason)
+      if reason == "unchanged" then
+        handled = true
+        refresh_ui()
+      end
+    end,
+  })
+
+  if changed then
+    return true
   end
 
-  local changed = buffer.replace(target, block.start_line, block.end_line, lines)
-  refresh_highlight(target)
-  indicator.show(target)
-  state.record_undo_state(target)
-  return changed or true
+  if handled then
+    return true
+  end
+
+  return false
 end
 
 ---Delete the column under the cursor.

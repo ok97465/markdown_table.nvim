@@ -1,14 +1,12 @@
 local state = require("markdown_table.state")
-local parser = require("markdown_table.parser")
-local aligner = require("markdown_table.align")
-local highlight = require("markdown_table.highlight")
-local indicator = require("markdown_table.indicator")
-local buffer = require("markdown_table.buffer")
+local AlignmentService = require("markdown_table.alignment_service")
+local ui = require("markdown_table.ui")
 
 local M = {}
 
 local group_name = "MarkdownTableMode"
 local debounce_handles = {}
+local align_service = AlignmentService.new()
 
 ---Align the table under the cursor, returning true if it changed.
 ---@param buf integer
@@ -32,30 +30,19 @@ local function align_current(buf, win)
     target_win = vim.api.nvim_get_current_win()
   end
 
-  local cursor = vim.api.nvim_win_get_cursor(target_win)
-  local block = parser.block_at(buf, cursor[1] - 1)
-  if not block then
-    return false
-  end
-
-  local lines = aligner.align_block(block)
-  if not lines then
-    return false
-  end
-
-  local changed = buffer.replace(buf, block.start_line, block.end_line, lines, { undojoin = true })
-  if not changed then
-    state.record_undo_state(buf)
-    return false
-  end
-  highlight.apply(buf, {
-    {
-      start_line = block.start_line,
-      end_line = block.end_line,
-    },
+  local changed = align_service:align_at_cursor(buf, {
+    win = target_win,
+    replace_opts = { undojoin = true },
+    on_success = function(_, block)
+      ui.highlight_block(buf, block)
+      ui.show_indicator(buf)
+    end,
   })
-  indicator.show(buf)
-  state.record_undo_state(buf)
+
+  if not changed then
+    return false
+  end
+
   return true
 end
 
@@ -111,7 +98,7 @@ function M.activate(buf)
     group = augroup_name,
     buffer = buf,
     callback = function(args)
-      indicator.show(args.buf)
+      ui.show_indicator(args.buf)
     end,
   })
 
@@ -120,8 +107,8 @@ function M.activate(buf)
     buffer = buf,
     callback = function()
       clear_debounce(buf)
-      highlight.clear(buf)
-      indicator.hide(buf)
+      ui.clear_highlight(buf)
+      ui.hide_indicator(buf)
     end,
   })
 end
@@ -129,8 +116,8 @@ end
 function M.deactivate(buf)
   clear_debounce(buf)
   pcall(vim.api.nvim_del_augroup_by_name, group_name .. buf)
-  highlight.clear(buf)
-  indicator.hide(buf)
+  ui.clear_highlight(buf)
+  ui.hide_indicator(buf)
 end
 
 function M._align_for_test(buf)

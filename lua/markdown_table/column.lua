@@ -1,7 +1,8 @@
-local aligner = require("markdown_table.align")
+local AlignmentService = require("markdown_table.alignment_service")
 local position = require("markdown_table.position")
 
 local M = {}
+local align_service = AlignmentService.new()
 
 local function clone_alignment(info)
   if type(info) ~= "table" then
@@ -69,12 +70,7 @@ local function alignment_template(block, index)
 end
 
 local function write_block(buf, block)
-  local lines = aligner.align_block(block)
-  if not lines then
-    return false
-  end
-  vim.api.nvim_buf_set_lines(buf, block.start_line, block.end_line, false, lines)
-  return true
+  return align_service:align_block(buf, block, { record_undo = false })
 end
 
 local function adjust_block(buf, cursor, mutate)

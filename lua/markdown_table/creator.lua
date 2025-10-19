@@ -1,12 +1,12 @@
-local state = require("markdown_table.state")
 local parser = require("markdown_table.parser")
-local aligner = require("markdown_table.align")
-local highlight = require("markdown_table.highlight")
+local AlignmentService = require("markdown_table.alignment_service")
+local ui = require("markdown_table.ui")
 
 local M = {}
 
 local NBSP = (vim and vim.fn and vim.fn.nr2char(0xA0)) or string.char(0xC2, 0xA0)
 local placeholder_width = 6
+local align_service = AlignmentService.new()
 
 local function sanitize_count(value, fallback)
   local num = tonumber(value)
@@ -58,22 +58,17 @@ local function align_block(buf, start_line)
   if not block then
     return
   end
-
-  local aligned = aligner.align_block(block)
-  if not aligned then
-    return
-  end
-
-  vim.api.nvim_buf_set_lines(buf, block.start_line, block.end_line, false, aligned)
-
-  if state.config().highlight then
-    highlight.apply(buf, {
-      {
-        start_line = block.start_line,
-        end_line = block.end_line,
-      },
-    })
-  end
+  align_service:align_block(buf, block, {
+    record_undo = false,
+    on_success = function()
+      ui.highlight_block(buf, block)
+    end,
+    on_noop = function(_, _, reason)
+      if reason == "unchanged" then
+        ui.highlight_block(buf, block)
+      end
+    end,
+  })
 end
 
 ---Insert a generated table at the current cursor.
