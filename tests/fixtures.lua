@@ -137,7 +137,15 @@ M.cases = {
     name = "delete_column_middle",
     cursor = { line = 3, col = 10 },
     operation = "delete_column",
+    expect_active = true,
+    expect_active_after_undo = true,
     input = [[
+      | Name | Age | City |
+      | --- | ---: | --- |
+      | Alice | 24 | Seattle |
+      | Bob | 31 | Portland |
+    ]],
+    undo_expected = [[
       | Name | Age | City |
       | --- | ---: | --- |
       | Alice | 24 | Seattle |
@@ -156,7 +164,14 @@ M.cases = {
     operation = "insert_left",
     verify_aligned = true,
     expect_active = true,
+    expect_active_after_undo = true,
     input = [[
+      | Item | Quantity |
+      | --- | --- |
+      | Pens | 10 |
+      | Paper | 25 |
+    ]],
+    undo_expected = [[
       | Item | Quantity |
       | --- | --- |
       | Pens | 10 |
@@ -175,7 +190,14 @@ M.cases = {
     operation = "insert_right",
     verify_aligned = true,
     expect_active = true,
+    expect_active_after_undo = true,
     input = [[
+      | Task | DoneDone |
+      | --- | :---: |
+      | Write | yes |
+      | Review | no |
+    ]],
+    undo_expected = [[
       | Task | DoneDone |
       | --- | :---: |
       | Write | yes |
@@ -195,7 +217,13 @@ M.cases = {
     verify_aligned = true,
     activate_before = true,
     expect_active = true,
+    expect_active_after_undo = true,
     input = [[
+      | Left | Center | Right |
+      | :--- | :---: | ---: |
+      | A | B | C |
+    ]],
+    undo_expected = [[
       | Left | Center | Right |
       | :--- | :---: | ---: |
       | A | B | C |
@@ -206,6 +234,35 @@ M.cases = {
       | A      |      |    B   |       C |
     ]],
   },
+  {
+    name = "cell_edit_single_undo",
+    cursor = { line = 3, col = 2 },
+    activate_before = true,
+    expect_active = true,
+    expect_active_after_undo = true,
+    edit_cell = {
+      line = 3,
+      start_col = 2,
+      end_col = 5,
+      text = "Bobby",
+      wait_ms = 250,
+    },
+    input = [[
+      | Name | Age |
+      | --- | --- |
+      | Bob | 31 |
+    ]],
+    expected = [[
+      | Name  | Age |
+      | ----- | --- |
+      | Bobby | 31  |
+    ]],
+    undo_expected = [[
+      | Name | Age |
+      | --- | --- |
+      | Bob | 31 |
+    ]],
+  },
 }
 
 for _, case in ipairs(M.cases) do
@@ -214,6 +271,9 @@ for _, case in ipairs(M.cases) do
   end
   if case.expected then
     case.expected = to_lines(case.expected)
+  end
+  if case.undo_expected then
+    case.undo_expected = to_lines(case.undo_expected)
   end
 end
 

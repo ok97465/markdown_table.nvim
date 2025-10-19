@@ -27,6 +27,8 @@ local function ensure(buf)
     entry = {
       active = false,
       options = {},
+      pending_auto_align = 0,
+      undo_seq = nil,
     }
     buffers[buf] = entry
   end
@@ -61,6 +63,79 @@ end
 
 function M.set_active(buf, active)
   ensure(buf).active = active
+end
+
+---Schedule suppression for the next automatic align.
+---@param buf integer
+---@param count integer|nil
+function M.defer_auto_align(buf, count)
+  local entry = ensure(buf)
+  local amount = count or 1
+  if amount <= 0 then
+    return
+  end
+  entry.pending_auto_align = (entry.pending_auto_align or 0) + amount
+end
+
+---Consume a pending automatic align suppression.
+---@param buf integer
+---@return boolean
+function M.consume_auto_align(buf)
+  local entry = ensure(buf)
+  local pending = entry.pending_auto_align or 0
+  if pending > 0 then
+    entry.pending_auto_align = pending - 1
+    return true
+  end
+  return false
+end
+
+---Return the number of pending automatic align suppressions.
+---@param buf integer
+---@return integer
+function M.pending_auto_align(buf)
+  return ensure(buf).pending_auto_align or 0
+end
+
+local function current_undo_sequence(buf)
+  local ok, seq = pcall(vim.api.nvim_buf_call, buf, function()
+    local ok_tree, tree = pcall(vim.fn.undotree)
+    if not ok_tree or type(tree) ~= "table" then
+      return nil
+    end
+    return tree.seq_cur
+  end)
+  if not ok or seq == nil then
+    return nil
+  end
+  return seq
+end
+
+---Refresh the cached undo sequence for the buffer.
+---@param buf integer
+function M.record_undo_state(buf)
+  local seq = current_undo_sequence(buf)
+  if seq == nil then
+    return
+  end
+  ensure(buf).undo_seq = seq
+end
+
+---Check whether the buffer recently triggered an undo operation.
+---@param buf integer
+---@return boolean
+function M.did_undo(buf)
+  local seq = current_undo_sequence(buf)
+  if seq == nil then
+    return false
+  end
+  local entry = ensure(buf)
+  local previous = entry.undo_seq
+  entry.undo_seq = seq
+  if not previous then
+    return false
+  end
+  return seq < previous
 end
 
 return M

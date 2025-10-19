@@ -2,6 +2,7 @@ local parser = require("markdown_table.parser")
 local aligner = require("markdown_table.align")
 local fixtures = require("tests.fixtures")
 local markdown_table = require("markdown_table")
+local automations = require("markdown_table.autocmd")
 
 local M = {}
 
@@ -38,6 +39,11 @@ local function run_case(case)
 
   if case.input then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, case.input)
+    local ok, old_levels = pcall(vim.api.nvim_buf_get_option, buf, "undolevels")
+    if ok then
+      vim.api.nvim_buf_set_option(buf, "undolevels", -1)
+      vim.api.nvim_buf_set_option(buf, "undolevels", old_levels)
+    end
   end
 
   if case.create then
@@ -54,6 +60,42 @@ local function run_case(case)
 
   if case.activate_before then
     markdown_table.enable(buf)
+  end
+
+  if case.edit_cell then
+    markdown_table.enable(buf)
+    local edit = case.edit_cell
+    local line = edit.line or cursor_line
+    local start_col = edit.start_col or cursor_col
+    local end_col = edit.end_col or start_col
+    vim.api.nvim_buf_set_text(buf, line - 1, start_col, line - 1, end_col, { edit.text or "" })
+    if edit.wait_ms and edit.wait_ms > 0 then
+      vim.cmd(string.format("sleep %dm", edit.wait_ms))
+    end
+    automations._align_for_test(buf)
+
+    if case.expected then
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      local actual = vim.api.nvim_buf_get_lines(buf, 0, line_count, false)
+      assert_lines(case.name, actual, case.expected)
+    end
+
+    if case.expect_active ~= nil then
+      local active = markdown_table.is_active(buf)
+      assert_equal(active, case.expect_active, string.format("%s: unexpected Table Mode state", case.name))
+    end
+
+    if case.undo_expected then
+      vim.cmd("silent undo")
+      vim.cmd("sleep 200m")
+      local after_undo = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert_lines(case.name .. " (after undo)", after_undo, case.undo_expected)
+      if case.expect_active_after_undo ~= nil then
+        local active_after = markdown_table.is_active(buf)
+        assert_equal(active_after, case.expect_active_after_undo, string.format("%s: unexpected Table Mode state after undo", case.name))
+      end
+    end
+    return
   end
 
   if case.operation then
@@ -89,6 +131,17 @@ local function run_case(case)
     if case.expect_active ~= nil then
       local active = markdown_table.is_active(buf)
       assert_equal(active, case.expect_active, string.format("%s: unexpected Table Mode state", case.name))
+    end
+
+    if case.undo_expected then
+      vim.cmd("silent undo")
+      vim.cmd("sleep 200m")
+      local after_undo = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert_lines(case.name .. " (after undo)", after_undo, case.undo_expected)
+      if case.expect_active_after_undo ~= nil then
+        local active_after = markdown_table.is_active(buf)
+        assert_equal(active_after, case.expect_active_after_undo, string.format("%s: unexpected Table Mode state after undo", case.name))
+      end
     end
     return
   end

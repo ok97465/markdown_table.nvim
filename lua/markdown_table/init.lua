@@ -6,6 +6,7 @@ local automations = require("markdown_table.autocmd")
 local creator = require("markdown_table.creator")
 local indicator = require("markdown_table.indicator")
 local column = require("markdown_table.column")
+local buffer = require("markdown_table.buffer")
 
 local M = {}
 local configured = false
@@ -46,6 +47,26 @@ local function refresh_highlight(buf)
   highlight.apply(buf, ranges)
 end
 
+local function post_column_change(buf, was_active)
+  if not was_active then
+    M.enable(buf)
+    return
+  end
+
+  refresh_highlight(buf)
+  indicator.show(buf)
+  state.record_undo_state(buf)
+end
+
+local function prepare_column_change(buf)
+  local active = state.is_active(buf)
+  local suppress = active and state.config().auto_align
+  if suppress then
+    state.defer_auto_align(buf)
+  end
+  return active, suppress
+end
+
 local function apply_activation(buf, active)
   state.set_active(buf, active)
   if active and state.config().highlight then
@@ -61,6 +82,7 @@ local function apply_activation(buf, active)
     automations.deactivate(buf)
     indicator.hide(buf)
   end
+  state.record_undo_state(buf)
 end
 
 local function create_commands()
@@ -168,52 +190,62 @@ function M.align(buf)
     return false
   end
 
-  vim.api.nvim_buf_set_lines(target, block.start_line, block.end_line, false, lines)
+  local changed = buffer.replace(target, block.start_line, block.end_line, lines)
   refresh_highlight(target)
   indicator.show(target)
-  return true
+  state.record_undo_state(target)
+  return changed or true
 end
 
 ---Delete the column under the cursor.
 ---@param buf integer|nil
 function M.delete_column(buf)
   local target = resolve_buffer(buf)
+  local was_active, deferred = prepare_column_change(target)
   local success = column.delete(target)
   if not success then
+    if deferred then
+      state.consume_auto_align(target)
+    end
     return false
   end
 
-  return M.align(target)
+  post_column_change(target, was_active)
+  return true
 end
 
 ---Insert an empty column to the left of the cursor.
 ---@param buf integer|nil
 function M.insert_column_left(buf)
   local target = resolve_buffer(buf)
+  local was_active, deferred = prepare_column_change(target)
   local success = column.insert_left(target)
   if not success then
+    if deferred then
+      state.consume_auto_align(target)
+    end
     return false
   end
-  if not state.is_active(target) then
-    M.enable(target)
-  end
 
-  return M.align(target)
+  post_column_change(target, was_active)
+  return true
 end
 
 ---Insert an empty column to the right of the cursor.
 ---@param buf integer|nil
 function M.insert_column_right(buf)
   local target = resolve_buffer(buf)
+  local was_active, deferred = prepare_column_change(target)
   local success = column.insert_right(target)
   if not success then
+    if deferred then
+      state.consume_auto_align(target)
+    end
     return false
   end
-  if not state.is_active(target) then
-    M.enable(target)
-  end
 
-  return M.align(target)
+  post_column_change(target, was_active)
+  return true
 end
 
 ---Create a markdown table at the cursor (interactive).
