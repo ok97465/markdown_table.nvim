@@ -38,4 +38,10 @@ luac.out
 *.i*86
 *.x86_64
 *.hex
+# Mac
+.DS_Store
 
+# Python
+.venv/
+*.pyc
+__pycache__/
