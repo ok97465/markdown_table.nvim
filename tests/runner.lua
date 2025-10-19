@@ -1,6 +1,7 @@
 local parser = require("markdown_table.parser")
 local aligner = require("markdown_table.align")
 local fixtures = require("tests.fixtures")
+local markdown_table = require("markdown_table")
 
 local M = {}
 
@@ -22,9 +23,23 @@ end
 
 local function run_case(case)
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, case.input)
-  local cursor_line = math.max(case.cursor or 1, 1)
+  vim.api.nvim_set_current_buf(buf)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
 
+  if case.input then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, case.input)
+  end
+
+  if case.create then
+    markdown_table.create_table(buf, case.create)
+    if case.expected then
+      local actual = vim.api.nvim_buf_get_lines(buf, 0, #case.expected, false)
+      assert_lines(case.name, actual, case.expected)
+    end
+    return
+  end
+
+  local cursor_line = math.max(case.cursor or 1, 1)
   local block = parser.block_at(buf, cursor_line - 1)
   if case.expect_block == false then
     if block then
@@ -54,4 +69,3 @@ function M.main()
 end
 
 return M
-

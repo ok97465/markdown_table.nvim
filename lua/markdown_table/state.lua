@@ -5,6 +5,11 @@ local defaults = {
   highlight_group = "CursorLine",
   auto_align = true,
   debounce_ms = 120,
+  indicator = {
+    enable = true,
+    text = "[Table Mode]",
+    highlight = "Title",
+  },
 }
 
 local buffers = setmetatable({}, { __mode = "k" })

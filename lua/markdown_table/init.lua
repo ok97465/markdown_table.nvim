@@ -3,6 +3,8 @@ local highlight = require("markdown_table.highlight")
 local parser = require("markdown_table.parser")
 local aligner = require("markdown_table.align")
 local automations = require("markdown_table.autocmd")
+local creator = require("markdown_table.creator")
+local indicator = require("markdown_table.indicator")
 
 local M = {}
 local configured = false
@@ -53,8 +55,10 @@ local function apply_activation(buf, active)
 
   if active then
     automations.activate(buf)
+    indicator.show(buf)
   else
     automations.deactivate(buf)
+    indicator.hide(buf)
   end
 end
 
@@ -70,6 +74,12 @@ local function create_commands()
   end, {
     desc = "Align the markdown table at the cursor",
   })
+
+  vim.api.nvim_create_user_command("MarkdownTableCreate", function(cmd)
+    M.create(cmd.buf)
+  end, {
+    desc = "Interactively create a markdown table",
+  })
 end
 
 function M.setup(opts)
@@ -79,6 +89,9 @@ function M.setup(opts)
     for _, entry in ipairs(state.current_buffers()) do
       if entry.data.active then
         refresh_highlight(entry.buf)
+        indicator.show(entry.buf)
+      else
+        indicator.hide(entry.buf)
       end
     end
     return
@@ -138,7 +151,22 @@ function M.align(buf)
 
   vim.api.nvim_buf_set_lines(target, block.start_line, block.end_line, false, lines)
   refresh_highlight(target)
+  indicator.show(target)
   return true
+end
+
+---Create a markdown table at the cursor (interactive).
+---@param buf integer|nil
+function M.create(buf)
+  local target = resolve_buffer(buf)
+  creator.interactive_create(target)
+end
+
+---Programmatic creation helper for tests.
+---@param buf integer
+---@param opts table
+function M.create_table(buf, opts)
+  creator.insert(resolve_buffer(buf), opts)
 end
 
 return M

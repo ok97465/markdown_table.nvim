@@ -39,6 +39,27 @@ local function to_lines(value)
   return lines
 end
 
+local NBSP = "\194\160"
+local PLACEHOLDER_WIDTH = 6
+
+local function join_row(columns, value)
+  local cells = {}
+  for col = 1, columns do
+    cells[col] = value
+  end
+  return "| " .. table.concat(cells, " | ") .. " |"
+end
+
+local function blank_table_lines(columns, rows)
+  local placeholder = NBSP:rep(PLACEHOLDER_WIDTH)
+  local separator = join_row(columns, string.rep("-", PLACEHOLDER_WIDTH))
+  local lines = { join_row(columns, placeholder), separator }
+  for _ = 1, rows do
+    lines[#lines + 1] = join_row(columns, placeholder)
+  end
+  return lines
+end
+
 M.cases = {
   {
     name = "basic_alignment",
@@ -107,10 +128,17 @@ M.cases = {
       "Another plain line",
     },
   },
+  {
+    name = "create_table_generation",
+    create = { columns = 3, rows = 2 },
+    expected = blank_table_lines(3, 2),
+  },
 }
 
 for _, case in ipairs(M.cases) do
-  case.input = to_lines(case.input)
+  if case.input then
+    case.input = to_lines(case.input)
+  end
   if case.expected then
     case.expected = to_lines(case.expected)
   end

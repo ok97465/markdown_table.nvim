@@ -2,6 +2,7 @@ local state = require("markdown_table.state")
 local parser = require("markdown_table.parser")
 local aligner = require("markdown_table.align")
 local highlight = require("markdown_table.highlight")
+local indicator = require("markdown_table.indicator")
 
 local M = {}
 
@@ -40,6 +41,7 @@ local function align_current(buf, win)
       end_line = block.end_line,
     },
   })
+  indicator.show(buf)
   return true
 end
 
@@ -91,12 +93,21 @@ function M.activate(buf)
     })
   end
 
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    group = augroup_name,
+    buffer = buf,
+    callback = function(args)
+      indicator.show(args.buf)
+    end,
+  })
+
   vim.api.nvim_create_autocmd({ "BufLeave", "BufUnload" }, {
     group = augroup_name,
     buffer = buf,
     callback = function()
       clear_debounce(buf)
       highlight.clear(buf)
+      indicator.hide(buf)
     end,
   })
 end
@@ -105,6 +116,7 @@ function M.deactivate(buf)
   clear_debounce(buf)
   pcall(vim.api.nvim_del_augroup_by_name, group_name .. buf)
   highlight.clear(buf)
+  indicator.hide(buf)
 end
 
 return M
