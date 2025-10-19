@@ -22,6 +22,36 @@ All keys are optional; the snippet shows the default configuration.
 - `:MarkdownTableAlign` – Align the table under the cursor.
 - `:MarkdownTableCreate` – Prompt for rows/columns and insert a table skeleton.
 
+### Navigation
+`markdown_table.move_cell_left()` and `markdown_table.move_cell_right()` jump the cursor to the previous or next cell on the current table row. They return `true` on success so you can gracefully fall back to the original key behavior when no table cell is available.
+
+```lua
+local table_mode = require("markdown_table")
+
+-- Normal mode navigation between cells
+vim.keymap.set("n", "[t", table_mode.move_cell_left, { desc = "Markdown table: previous cell" })
+vim.keymap.set("n", "]t", table_mode.move_cell_right, { desc = "Markdown table: next cell" })
+
+-- Insert mode example that keeps Tab available outside of tables
+local function feedkeys(keys)
+  return vim.api.nvim_replace_termcodes(keys, true, true, true)
+end
+
+vim.keymap.set("i", "<Tab>", function()
+  if table_mode.move_cell_right() then
+    return ""
+  end
+  return feedkeys("<Tab>")
+end, { expr = true, desc = "Markdown table: next cell (Insert)" })
+
+vim.keymap.set("i", "<S-Tab>", function()
+  if table_mode.move_cell_left() then
+    return ""
+  end
+  return feedkeys("<S-Tab>")
+end, { expr = true, desc = "Markdown table: previous cell (Insert)" })
+```
+
 Sample inputs used for testing live in `tests/fixtures.lua`, making it easy to add more scenarios.
 
 ## Testing

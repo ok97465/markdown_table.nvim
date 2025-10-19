@@ -347,6 +347,54 @@ M.cases = {
     ]],
   },
   {
+    name = "move_cell_right_basic",
+    cursor = { line = 3, col = 2 },
+    move = "right",
+    expect_success = true,
+    expected_cursor = { line = 3, col = 8 },
+    input = [[
+      | Name | Age | City |
+      | --- | --- | --- |
+      | Bob | 31 | NYC |
+    ]],
+  },
+  {
+    name = "move_cell_left_basic",
+    cursor = { line = 3, col = 8 },
+    move = "left",
+    expect_success = true,
+    expected_cursor = { line = 3, col = 2 },
+    input = [[
+      | Name | Age | City |
+      | --- | --- | --- |
+      | Bob | 31 | NYC |
+    ]],
+  },
+  {
+    name = "move_cell_blank_left",
+    cursor = { line = 3, col = 7 },
+    move = "left",
+    expect_success = true,
+    expected_cursor = { line = 3, col = 2 },
+    input = [[
+      | Key | Value | Note |
+      | --- | --- | --- |
+      |     | data |     |
+    ]],
+  },
+  {
+    name = "move_cell_right_blocked",
+    cursor = { line = 3, col = 13 },
+    move = "right",
+    expect_success = false,
+    expected_cursor = { line = 3, col = 13 },
+    input = [[
+      | Name | Age | City |
+      | --- | --- | --- |
+      | Bob | 31 | NYC |
+    ]],
+  },
+  {
     name = "cell_edit_single_undo",
     cursor = { line = 3, col = 2 },
     activate_before = true,

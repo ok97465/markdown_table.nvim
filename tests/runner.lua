@@ -10,6 +10,7 @@ local M = {}
 local CATEGORY_ORDER = {
   { key = "alignment", label = "Alignment cases" },
   { key = "column_ops", label = "Column operation cases" },
+  { key = "navigation", label = "Navigation cases" },
   { key = "cell_edits", label = "Cell edit cases" },
   { key = "creation", label = "Table creation cases" },
   { key = "detection", label = "Detection cases" },
@@ -18,6 +19,9 @@ local CATEGORY_ORDER = {
 local function classify_case(case)
   if case.create then
     return "creation"
+  end
+  if case.move then
+    return "navigation"
   end
   if case.operation then
     return "column_ops"
@@ -118,6 +122,32 @@ local function run_case(case)
       if case.expect_active_after_undo ~= nil then
         local active_after = markdown_table.is_active(buf)
         assert_equal(active_after, case.expect_active_after_undo, string.format("%s: unexpected Table Mode state after undo", case.name))
+      end
+    end
+    return
+  end
+
+  if case.move then
+    local ok
+    if case.move == "left" then
+      ok = markdown_table.move_cell_left(buf)
+    elseif case.move == "right" then
+      ok = markdown_table.move_cell_right(buf)
+    else
+      error(string.format("%s: unknown move '%s'", case.name, tostring(case.move)))
+    end
+
+    if case.expect_success ~= nil then
+      assert_equal(ok, case.expect_success, string.format("%s: unexpected move success state", case.name))
+    end
+
+    if case.expected_cursor then
+      local actual_cursor = vim.api.nvim_win_get_cursor(0)
+      if case.expected_cursor.line then
+        assert_equal(actual_cursor[1], case.expected_cursor.line, string.format("%s: unexpected cursor line", case.name))
+      end
+      if case.expected_cursor.col then
+        assert_equal(actual_cursor[2], case.expected_cursor.col, string.format("%s: unexpected cursor column", case.name))
       end
     end
     return

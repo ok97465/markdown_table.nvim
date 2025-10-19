@@ -7,6 +7,7 @@ local creator = require("markdown_table.creator")
 local indicator = require("markdown_table.indicator")
 local column = require("markdown_table.column")
 local buffer = require("markdown_table.buffer")
+local navigation = require("markdown_table.navigation")
 
 local M = {}
 local configured = false
@@ -260,6 +261,22 @@ end
 ---@param opts table
 function M.create_table(buf, opts)
   creator.insert(resolve_buffer(buf), opts)
+end
+
+---Move the cursor to the previous table cell on the current row.
+---@param buf integer|nil
+---@return boolean
+function M.move_cell_left(buf)
+  local target = resolve_buffer(buf)
+  return navigation.move_left(target)
+end
+
+---Move the cursor to the next table cell on the current row.
+---@param buf integer|nil
+---@return boolean
+function M.move_cell_right(buf)
+  local target = resolve_buffer(buf)
+  return navigation.move_right(target)
 end
 
 return M

@@ -1,5 +1,5 @@
-local parser = require("markdown_table.parser")
 local aligner = require("markdown_table.align")
+local position = require("markdown_table.position")
 
 local M = {}
 
@@ -12,63 +12,6 @@ local function clone_alignment(info)
     colon_left = info.colon_left,
     colon_right = info.colon_right,
   }
-end
-
-local function max_columns(block)
-  local columns = 0
-  for _, row in ipairs(block.rows or {}) do
-    if row.cells and #row.cells > columns then
-      columns = #row.cells
-    end
-    if row.alignments and #row.alignments > columns then
-      columns = #row.alignments
-    end
-  end
-  return columns
-end
-
-local function clamp_column(count, index)
-  if count == 0 then
-    return nil
-  end
-  if index < 1 then
-    return 1
-  end
-  if index > count then
-    return count
-  end
-  return index
-end
-
-local function column_from_cursor(block, cursor_row, cursor_col, total_columns)
-  if total_columns == 0 then
-    return nil
-  end
-
-  local row_index = cursor_row - block.start_line + 1
-  if row_index < 1 or row_index > #block.lines then
-    row_index = 1
-  end
-
-  local line = block.lines[row_index]
-  if not line then
-    return nil
-  end
-
-  local col = math.max(cursor_col or 0, 0)
-  local upto
-  if col >= #line then
-    upto = line
-  else
-    upto = line:sub(1, col + 1)
-  end
-
-  local pipe_count = select(2, upto:gsub("%|", ""))
-  if pipe_count == 0 then
-    return 1
-  end
-
-  return clamp_column(total_columns, pipe_count)
 end
 
 local function ensure_cells(row, count)
@@ -135,28 +78,17 @@ local function write_block(buf, block)
 end
 
 local function adjust_block(buf, cursor, mutate)
-  local row = cursor[1] - 1
-  local block = parser.block_at(buf, row)
-  if not block then
+  local context = position.locate(buf, cursor)
+  if not context then
     return false
   end
 
-  local total_columns = max_columns(block)
-  if total_columns == 0 then
-    return false
-  end
-
-  local column = column_from_cursor(block, row, cursor[2], total_columns)
-  if not column then
-    return false
-  end
-
-  local ok = mutate(block, column, total_columns)
+  local ok = mutate(context.block, context.column, context.total_columns)
   if not ok then
     return false
   end
 
-  return write_block(buf, block)
+  return write_block(buf, context.block)
 end
 
 function M.delete(buf, cursor)
