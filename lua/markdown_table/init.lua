@@ -5,6 +5,7 @@ local aligner = require("markdown_table.align")
 local automations = require("markdown_table.autocmd")
 local creator = require("markdown_table.creator")
 local indicator = require("markdown_table.indicator")
+local column = require("markdown_table.column")
 
 local M = {}
 local configured = false
@@ -80,6 +81,24 @@ local function create_commands()
   end, {
     desc = "Interactively create a markdown table",
   })
+
+  vim.api.nvim_create_user_command("MarkdownTableColumnDelete", function(cmd)
+    M.delete_column(cmd.buf)
+  end, {
+    desc = "Delete the table column under the cursor",
+  })
+
+  vim.api.nvim_create_user_command("MarkdownTableColumnInsertLeft", function(cmd)
+    M.insert_column_left(cmd.buf)
+  end, {
+    desc = "Insert a table column to the left of the cursor",
+  })
+
+  vim.api.nvim_create_user_command("MarkdownTableColumnInsertRight", function(cmd)
+    M.insert_column_right(cmd.buf)
+  end, {
+    desc = "Insert a table column to the right of the cursor",
+  })
 end
 
 function M.setup(opts)
@@ -153,6 +172,48 @@ function M.align(buf)
   refresh_highlight(target)
   indicator.show(target)
   return true
+end
+
+---Delete the column under the cursor.
+---@param buf integer|nil
+function M.delete_column(buf)
+  local target = resolve_buffer(buf)
+  local success = column.delete(target)
+  if not success then
+    return false
+  end
+
+  return M.align(target)
+end
+
+---Insert an empty column to the left of the cursor.
+---@param buf integer|nil
+function M.insert_column_left(buf)
+  local target = resolve_buffer(buf)
+  local success = column.insert_left(target)
+  if not success then
+    return false
+  end
+  if not state.is_active(target) then
+    M.enable(target)
+  end
+
+  return M.align(target)
+end
+
+---Insert an empty column to the right of the cursor.
+---@param buf integer|nil
+function M.insert_column_right(buf)
+  local target = resolve_buffer(buf)
+  local success = column.insert_right(target)
+  if not success then
+    return false
+  end
+  if not state.is_active(target) then
+    M.enable(target)
+  end
+
+  return M.align(target)
 end
 
 ---Create a markdown table at the cursor (interactive).

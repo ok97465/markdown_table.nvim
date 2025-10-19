@@ -73,11 +73,11 @@ M.cases = {
       | Charlie | 5 | Boston|
     ]],
     expected = [[
-      | Name    | Age |     City |
-      | ------- | :---: | --------: |
-      | Alice   | 24  |  Seattle |
-      | Bob     | 31  | New York |
-      | Charlie |  5  |   Boston |
+      | Name    |  Age |       City |
+      | ------- | :--: | ---------: |
+      | Alice   |  24  |    Seattle |
+      | Bob     |  31  |   New York |
+      | Charlie |   5  |     Boston |
     ]],
   },
   {
@@ -86,17 +86,17 @@ M.cases = {
     expect_block = true,
     input = [[
       | Key | Value | Note |
-      | --- | :---: | ---: |
+      | --- | :-----: | ---: |
       | foo |       | memo |
       | bar | 42    |      |
       |     | 13    | skip |
     ]],
     expected = [[
-      | Key | Value | Note |
-      | --- | :-----: | ----: |
-      | foo |       | memo |
-      | bar |  42   |      |
-      |     |  13   | skip |
+      | Key | Value |   Note |
+      | --- | :---: | -----: |
+      | foo |       |   memo |
+      | bar |   42  |        |
+      |     |   13  |   skip |
     ]],
   },
   {
@@ -132,6 +132,79 @@ M.cases = {
     name = "create_table_generation",
     create = { columns = 3, rows = 2 },
     expected = blank_table_lines(3, 2),
+  },
+  {
+    name = "delete_column_middle",
+    cursor = { line = 3, col = 10 },
+    operation = "delete_column",
+    input = [[
+      | Name | Age | City |
+      | --- | ---: | --- |
+      | Alice | 24 | Seattle |
+      | Bob | 31 | Portland |
+    ]],
+    expected = [[
+      | Name  | City     |
+      | ----- | -------- |
+      | Alice | Seattle  |
+      | Bob   | Portland |
+    ]],
+  },
+  {
+    name = "insert_column_left",
+    cursor = { line = 3, col = 10 },
+    operation = "insert_left",
+    verify_aligned = true,
+    expect_active = true,
+    input = [[
+      | Item | Quantity |
+      | --- | --- |
+      | Pens | 10 |
+      | Paper | 25 |
+    ]],
+    expected = [[
+      | Item  |      | Quantity |
+      | ----- | ---- | -------- |
+      | Pens  |      | 10       |
+      | Paper |      | 25       |
+    ]],
+  },
+  {
+    name = "insert_column_right",
+    cursor = { line = 3, col = 3 },
+    operation = "insert_right",
+    verify_aligned = true,
+    expect_active = true,
+    input = [[
+      | Task | DoneDone |
+      | --- | :---: |
+      | Write | yes |
+      | Review | no |
+    ]],
+    expected = [[
+      | Task   |      | DoneDone |
+      | ------ | ---- | :------: |
+      | Write  |      |    yes   |
+      | Review |      |    no    |
+    ]],
+  },
+  {
+    name = "insert_column_left_alignment_copy",
+    cursor = { line = 3, col = 6 },
+    operation = "insert_left",
+    verify_aligned = true,
+    activate_before = true,
+    expect_active = true,
+    input = [[
+      | Left | Center | Right |
+      | :--- | :---: | ---: |
+      | A | B | C |
+    ]],
+    expected = [[
+      | Left   |      | Center |   Right |
+      | :----- | :--: | :----: | ------: |
+      | A      |      |    B   |       C |
+    ]],
   },
 }
 

@@ -1,6 +1,8 @@
 local M = {}
 
 local strwidth = vim.strwidth or vim.fn.strdisplaywidth
+-- Ensure freshly inserted columns render with a visible six-character cell (width + padding).
+local MIN_EMPTY_COLUMN_WIDTH = 4
 
 local function pad_cell(text, width, align)
   local cleaned = text or ""
@@ -13,7 +15,7 @@ local function pad_cell(text, width, align)
   if align == "right" then
     return string.rep(" ", excess) .. trimmed
   elseif align == "center" then
-    local left = math.floor(excess / 2)
+    local left = math.ceil(excess / 2)
     local right = excess - left
     return string.rep(" ", left) .. trimmed .. string.rep(" ", right)
   else
@@ -44,17 +46,28 @@ local function data_align(meta)
 end
 
 local function separator_token(width, meta)
-  local dashes = math.max(3, width)
-  local body = string.rep("-", dashes)
-  if meta.colon_left and meta.colon_right then
-    return ":" .. body .. ":"
-  elseif meta.colon_right then
-    return body .. ":"
-  elseif meta.colon_left then
-    return ":" .. body
-  else
-    return body
+  local colon_left = meta.colon_left and true or false
+  local colon_right = meta.colon_right and true or false
+  local colon_count = 0
+  if colon_left then
+    colon_count = colon_count + 1
   end
+  if colon_right then
+    colon_count = colon_count + 1
+  end
+  local dash_count = width - colon_count
+  if dash_count < 1 then
+    dash_count = 1
+  end
+  local body = string.rep("-", dash_count)
+  local token = body
+  if colon_left then
+    token = ":" .. token
+  end
+  if colon_right then
+    token = token .. ":"
+  end
+  return token
 end
 
 ---Compute column metadata from parsed rows.
@@ -69,10 +82,12 @@ local function analyze_columns(rows)
   end
 
   local meta = {}
-  local widths = {}
+  local data_widths = {}
+  local has_content = {}
   for col = 1, column_count do
     meta[col] = normalize_align(nil)
-    widths[col] = 0
+    data_widths[col] = 0
+    has_content[col] = false
   end
 
   for _, row in ipairs(rows) do
@@ -84,12 +99,47 @@ local function analyze_columns(rows)
       end
     elseif row.cells then
       for idx, cell in ipairs(row.cells) do
-        local w = strwidth(cell.text or "")
-        if w > widths[idx] then
-          widths[idx] = w
+        local text = cell.text or ""
+        local width = strwidth(text)
+        if width > (data_widths[idx] or 0) then
+          data_widths[idx] = width
+        end
+        if text ~= "" then
+          has_content[idx] = true
         end
       end
     end
+  end
+
+  local widths = {}
+  for idx = 1, column_count do
+    local info = meta[idx]
+    local data_width = data_widths[idx] or 0
+    local colon_count = 0
+    if info.colon_left then
+      colon_count = colon_count + 1
+    end
+    if info.colon_right then
+      colon_count = colon_count + 1
+    end
+
+    local width = data_width
+    if info.align == "right" or info.align == "left" then
+      width = data_width + 2
+    elseif info.align == "center" then
+      width = math.max(data_width, colon_count * 2)
+    end
+
+    if colon_count > 0 then
+      width = math.max(width, colon_count * 2)
+    end
+
+    if not has_content[idx] then
+      width = math.max(width, MIN_EMPTY_COLUMN_WIDTH)
+    end
+
+    width = math.max(width, colon_count + 1)
+    widths[idx] = width
   end
 
   return meta, widths
@@ -131,4 +181,3 @@ function M.align_block(block)
 end
 
 return M
-

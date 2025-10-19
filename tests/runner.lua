@@ -21,6 +21,16 @@ local function assert_lines(name, actual, expected)
   end
 end
 
+local function resolve_cursor(case)
+  if type(case.cursor) == "table" then
+    local line = case.cursor.line or case.cursor[1] or 1
+    local col = case.cursor.col or case.cursor[2] or 0
+    return math.max(line, 1), math.max(col, 0)
+  end
+  local line = math.max(case.cursor or 1, 1)
+  return line, 0
+end
+
 local function run_case(case)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(buf)
@@ -39,7 +49,50 @@ local function run_case(case)
     return
   end
 
-  local cursor_line = math.max(case.cursor or 1, 1)
+  local cursor_line, cursor_col = resolve_cursor(case)
+  vim.api.nvim_win_set_cursor(0, { cursor_line, cursor_col })
+
+  if case.activate_before then
+    markdown_table.enable(buf)
+  end
+
+  if case.operation then
+    local ok
+    if case.operation == "delete_column" then
+      ok = markdown_table.delete_column(buf)
+    elseif case.operation == "insert_left" then
+      ok = markdown_table.insert_column_left(buf)
+    elseif case.operation == "insert_right" then
+      ok = markdown_table.insert_column_right(buf)
+    else
+      error(string.format("%s: unknown operation '%s'", case.name, tostring(case.operation)))
+    end
+
+    if case.expect_success ~= nil then
+      assert_equal(ok, case.expect_success, string.format("%s: unexpected success state", case.name))
+    end
+
+    if case.expected then
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      local actual = vim.api.nvim_buf_get_lines(buf, 0, line_count, false)
+      assert_lines(case.name, actual, case.expected)
+    end
+
+    if case.verify_aligned then
+      local before = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      local aligned = markdown_table.align(buf)
+      assert_equal(aligned, true, string.format("%s: align should succeed post-operation", case.name))
+      local after = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+      assert_lines(case.name .. " (post-align check)", after, before)
+    end
+
+    if case.expect_active ~= nil then
+      local active = markdown_table.is_active(buf)
+      assert_equal(active, case.expect_active, string.format("%s: unexpected Table Mode state", case.name))
+    end
+    return
+  end
+
   local block = parser.block_at(buf, cursor_line - 1)
   if case.expect_block == false then
     if block then
