@@ -3,51 +3,61 @@ local M = {}
 local strwidth = vim.strwidth or vim.fn.strdisplaywidth
 -- Ensure freshly inserted columns render with a visible six-character cell (width + padding).
 local MIN_EMPTY_COLUMN_WIDTH = 4
+local space_cache = { [0] = "" }
 
-local function pad_cell(text, width, align)
-  local cleaned = text or ""
-  local trimmed = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
-  local excess = width - strwidth(trimmed)
+local ALIGN_DEFAULT = -1
+local ALIGN_LEFT = 0
+local ALIGN_RIGHT = 1
+local ALIGN_CENTER = 2
+local NON_ASCII_PATTERN = "[\128-\255]"
+
+local function spaces(count)
+  if count <= 0 then
+    return ""
+  end
+  local cached = space_cache[count]
+  if cached then
+    return cached
+  end
+  local value = string.rep(" ", count)
+  space_cache[count] = value
+  return value
+end
+
+local function calc_width(text)
+  -- Use an ASCII fast path to avoid the expensive vim.strwidth call when possible.
+  if text == "" then
+    return 0
+  end
+  if not text:find(NON_ASCII_PATTERN) then
+    return #text
+  end
+  return strwidth(text)
+end
+
+local function pad_cell(text, text_width, width, align_mode)
+  local content = text or ""
+  local display_width = text_width or 0
+  if display_width == 0 and content ~= "" then
+    display_width = calc_width(content)
+  end
+  local excess = width - display_width
   if excess < 0 then
     excess = 0
   end
 
-  if align == "right" then
-    return string.rep(" ", excess) .. trimmed
-  elseif align == "center" then
+  if align_mode == ALIGN_RIGHT then
+    return spaces(excess) .. content
+  elseif align_mode == ALIGN_CENTER then
     local left = math.ceil(excess / 2)
     local right = excess - left
-    return string.rep(" ", left) .. trimmed .. string.rep(" ", right)
+    return spaces(left) .. content .. spaces(right)
   else
-    return trimmed .. string.rep(" ", excess)
+    return content .. spaces(excess)
   end
 end
 
-local function normalize_align(meta)
-  if not meta then
-    return { align = "default", colon_left = false, colon_right = false }
-  end
-  local align = meta.align
-  if align == "none" then
-    align = "default"
-  end
-  return {
-    align = align,
-    colon_left = meta.colon_left,
-    colon_right = meta.colon_right,
-  }
-end
-
-local function data_align(meta)
-  if not meta or meta.align == "default" then
-    return "left"
-  end
-  return meta.align
-end
-
-local function separator_token(width, meta)
-  local colon_left = meta.colon_left and true or false
-  local colon_right = meta.colon_right and true or false
+local function separator_token(width, colon_left, colon_right)
   local colon_count = 0
   if colon_left then
     colon_count = colon_count + 1
@@ -72,35 +82,63 @@ end
 
 ---Compute column metadata from parsed rows.
 ---@param rows table[]
----@return table[], table[]
+---@return integer[] widths, integer[] align_modes, boolean[] colon_left, boolean[] colon_right
 local function analyze_columns(rows)
   local column_count = 0
-  for _, row in ipairs(rows) do
-    if row.cells and #row.cells > column_count then
-      column_count = #row.cells
+  for idx = 1, #rows do
+    local row = rows[idx]
+    local cells = row.cells
+    if cells and #cells > column_count then
+      column_count = #cells
     end
   end
 
-  local meta = {}
+  local align_modes = {}
+  local colon_left = {}
+  local colon_right = {}
   local data_widths = {}
   local has_content = {}
   for col = 1, column_count do
-    meta[col] = normalize_align(nil)
+    align_modes[col] = ALIGN_DEFAULT
+    colon_left[col] = false
+    colon_right[col] = false
     data_widths[col] = 0
     has_content[col] = false
   end
 
-  for _, row in ipairs(rows) do
+  for row_idx = 1, #rows do
+    local row = rows[row_idx]
     if row.kind == "separator" then
-      for idx, align in ipairs(row.alignments or {}) do
-        if align then
-          meta[idx] = normalize_align(align)
+      local alignments = row.alignments
+      if alignments then
+        for idx = 1, #alignments do
+          local info = alignments[idx]
+          if info then
+            local align = info.align
+            if align == "center" then
+              align_modes[idx] = ALIGN_CENTER
+            elseif align == "right" then
+              align_modes[idx] = ALIGN_RIGHT
+            elseif align == "left" then
+              align_modes[idx] = ALIGN_LEFT
+            else
+              align_modes[idx] = ALIGN_DEFAULT
+            end
+            colon_left[idx] = info.colon_left and true or false
+            colon_right[idx] = info.colon_right and true or false
+          end
         end
       end
     elseif row.cells then
-      for idx, cell in ipairs(row.cells) do
+      local cells = row.cells
+      for idx = 1, #cells do
+        local cell = cells[idx]
         local text = cell.text or ""
-        local width = strwidth(text)
+        local width = cell.display_width
+        if not width then
+          width = calc_width(text)
+          cell.display_width = width
+        end
         if width > (data_widths[idx] or 0) then
           data_widths[idx] = width
         end
@@ -113,20 +151,20 @@ local function analyze_columns(rows)
 
   local widths = {}
   for idx = 1, column_count do
-    local info = meta[idx]
     local data_width = data_widths[idx] or 0
     local colon_count = 0
-    if info.colon_left then
+    if colon_left[idx] then
       colon_count = colon_count + 1
     end
-    if info.colon_right then
+    if colon_right[idx] then
       colon_count = colon_count + 1
     end
 
     local width = data_width
-    if info.align == "right" or info.align == "left" then
+    local mode = align_modes[idx]
+    if mode == ALIGN_RIGHT or mode == ALIGN_LEFT then
       width = data_width + 2
-    elseif info.align == "center" then
+    elseif mode == ALIGN_CENTER then
       width = math.max(data_width, colon_count * 2)
     end
 
@@ -142,7 +180,7 @@ local function analyze_columns(rows)
     widths[idx] = width
   end
 
-  return meta, widths
+  return widths, align_modes, colon_left, colon_right
 end
 
 ---Format parsed rows into aligned markdown table strings.
@@ -153,28 +191,31 @@ function M.align_block(block)
     return nil
   end
 
-  local meta, widths = analyze_columns(block.rows)
+  local rows = block.rows
+  local widths, align_modes, colon_left, colon_right = analyze_columns(rows)
+  local column_count = widths and #widths or 0
   local lines = {}
 
-  for _, row in ipairs(block.rows) do
+  for row_idx = 1, #rows do
+    local row = rows[row_idx]
     local cells = {}
     if row.kind == "separator" then
-      for idx = 1, #meta do
-        local cell_meta = meta[idx]
-        local token = separator_token(widths[idx], cell_meta)
+      for idx = 1, column_count do
+        local token = separator_token(widths[idx], colon_left[idx], colon_right[idx])
         cells[idx] = " " .. token .. " "
       end
     else
-      for idx = 1, #meta do
-        local cell = row.cells[idx]
+      local row_cells = row.cells
+      for idx = 1, column_count do
+        local cell = row_cells and row_cells[idx] or nil
         local cell_text = cell and cell.text or ""
-        local padded = pad_cell(cell_text, widths[idx], data_align(meta[idx]))
+        local cell_width = cell and cell.display_width or 0
+        local padded = pad_cell(cell_text, cell_width, widths[idx], align_modes[idx] or ALIGN_DEFAULT)
         cells[idx] = " " .. padded .. " "
       end
     end
 
-    local line = row.indent .. "|" .. table.concat(cells, "|") .. "|"
-    table.insert(lines, line)
+    lines[row_idx] = row.indent .. "|" .. table.concat(cells, "|") .. "|"
   end
 
   return lines

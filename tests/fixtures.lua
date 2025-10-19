@@ -119,6 +119,63 @@ M.cases = {
     ]],
   },
   {
+    name = "hangul_alignment_mixed_width",
+    cursor = 1,
+    expect_block = true,
+    input = [[
+      | 이름 | 역할 | 도시 |
+      | :--- | :---: | ---: |
+      | 김철수 | 팀장 | 서울 |
+      | Jane | 디자이너 | 부산 |
+      | 박영희 | QA | 대전 |
+    ]],
+    expected = [[
+      | 이름     |   역할   |   도시 |
+      | :------- | :------: | -----: |
+      | 김철수   |   팀장   |   서울 |
+      | Jane     | 디자이너 |   부산 |
+      | 박영희   |    QA    |   대전 |
+    ]],
+  },
+  {
+    name = "hangul_alignment_extended",
+    cursor = 1,
+    expect_block = true,
+    input = [[
+      | 구분 | Status | 메모 | Count |
+      | --- | :---: | ---: | :--- |
+      | 준비 | ready | 없음 | 3 |
+      | 진행중 | in progress | 비고 | 12 |
+      | 완료 | done | 현황 점검 | 2 |
+    ]],
+    expected = [[
+      | 구분   |    Status   |        메모 | Count   |
+      | ------ | :---------: | ----------: | :------ |
+      | 준비   |    ready    |        없음 | 3       |
+      | 진행중 | in progress |        비고 | 12      |
+      | 완료   |     done    |   현황 점검 | 2       |
+    ]],
+  },
+  {
+    name = "hangul_missing_cells_alignment",
+    cursor = 1,
+    expect_block = true,
+    input = [[
+      | 항목 | 설명 | 수치 | 참고 |
+      | --- | ---: | :---: | --- |
+      | Alpha | 데이터 | 10 | |
+      | Beta | | 200 | 메모 |
+      | 감자 | 길이가 긴 설명 | | 추가 |
+    ]],
+    expected = [[
+      | 항목  |             설명 | 수치 | 참고 |
+      | ----- | ---------------: | :--: | ---- |
+      | Alpha |           데이터 |  10  |      |
+      | Beta  |                  |  200 | 메모 |
+      | 감자  |   길이가 긴 설명 |      | 추가 |
+    ]],
+  },
+  {
     name = "non_table_lines",
     cursor = 2,
     expect_block = false,
@@ -211,6 +268,61 @@ M.cases = {
     ]],
   },
   {
+    name = "insert_column_right_hangul",
+    cursor = { line = 3, col = 7 },
+    operation = "insert_right",
+    verify_aligned = true,
+    expect_active = true,
+    expect_active_after_undo = true,
+    input = [[
+      | 제품 | 단가 | 수량 |
+      | ---: | --- | ---: |
+      | 연필 | 500 | 20 |
+      | Notebook | 1200 | 5 |
+      | 펜 | 800 | 12 |
+    ]],
+    undo_expected = [[
+      | 제품 | 단가 | 수량 |
+      | ---: | --- | ---: |
+      | 연필 | 500 | 20 |
+      | Notebook | 1200 | 5 |
+      | 펜 | 800 | 12 |
+    ]],
+    expected = [[
+      |       제품 |      | 단가 |   수량 |
+      | ---------: | ---: | ---- | -----: |
+      |       연필 |      | 500  |     20 |
+      |   Notebook |      | 1200 |      5 |
+      |         펜 |      | 800  |     12 |
+    ]],
+  },
+  {
+    name = "insert_column_left_hangul",
+    cursor = { line = 3, col = 5 },
+    operation = "insert_left",
+    verify_aligned = true,
+    expect_active = true,
+    expect_active_after_undo = true,
+    input = [[
+      | 상태 | 설명 |
+      | :---: | --- |
+      | 예정 | 일정 확인 |
+      | 완료 | 마감 |
+    ]],
+    undo_expected = [[
+      | 상태 | 설명 |
+      | :---: | --- |
+      | 예정 | 일정 확인 |
+      | 완료 | 마감 |
+    ]],
+    expected = [[
+      |      | 상태 | 설명      |
+      | :--: | :--: | --------- |
+      |      | 예정 | 일정 확인 |
+      |      | 완료 | 마감      |
+    ]],
+  },
+  {
     name = "insert_column_left_alignment_copy",
     cursor = { line = 3, col = 6 },
     operation = "insert_left",
@@ -261,6 +373,41 @@ M.cases = {
       | Name | Age |
       | --- | --- |
       | Bob | 31 |
+    ]],
+  },
+  {
+    name = "hangul_edit_alignment_growth",
+    cursor = { line = 3, col = 2 },
+    activate_before = true,
+    expect_active = true,
+    expect_active_after_undo = true,
+    edit_cell = {
+      line = 3,
+      start_col = 2,
+      end_col = 5,
+      text = "김철수",
+      wait_ms = 250,
+    },
+    input = [[
+      | 이름 | 점수 |
+      | --- | ---: |
+      | Kim | 82 |
+      | Lee | 90 |
+      | Park | 77 |
+    ]],
+    expected = [[
+      | 이름   |   점수 |
+      | ------ | -----: |
+      | 김철수 |     82 |
+      | Lee    |     90 |
+      | Park   |     77 |
+    ]],
+    undo_expected = [[
+      | 이름 | 점수 |
+      | --- | ---: |
+      | Kim | 82 |
+      | Lee | 90 |
+      | Park | 77 |
     ]],
   },
 }

@@ -3,8 +3,33 @@ local aligner = require("markdown_table.align")
 local fixtures = require("tests.fixtures")
 local markdown_table = require("markdown_table")
 local automations = require("markdown_table.autocmd")
+local benchmark = require("tests.benchmark_align")
 
 local M = {}
+
+local CATEGORY_ORDER = {
+  { key = "alignment", label = "Alignment cases" },
+  { key = "column_ops", label = "Column operation cases" },
+  { key = "cell_edits", label = "Cell edit cases" },
+  { key = "creation", label = "Table creation cases" },
+  { key = "detection", label = "Detection cases" },
+}
+
+local function classify_case(case)
+  if case.create then
+    return "creation"
+  end
+  if case.operation then
+    return "column_ops"
+  end
+  if case.edit_cell then
+    return "cell_edits"
+  end
+  if case.expect_block == false then
+    return "detection"
+  end
+  return "alignment"
+end
 
 local function assert_equal(actual, expected, context)
   if actual ~= expected then
@@ -168,10 +193,20 @@ local function run_case(case)
 end
 
 function M.main()
+  local stats = { total = 0, categories = {} }
   for _, case in ipairs(fixtures.cases) do
     run_case(case)
+    local category = classify_case(case)
+    stats.total = stats.total + 1
+    stats.categories[category] = (stats.categories[category] or 0) + 1
   end
-  print("All tests passed")
+  print(string.format("Fixture tests passed (%d cases):", stats.total))
+  for _, entry in ipairs(CATEGORY_ORDER) do
+    local count = stats.categories[entry.key] or 0
+    print(string.format("  %s: %d/%d", entry.label, count, stats.total))
+  end
+  -- Report single-run alignment timing for the large benchmark table to track regressions.
+  benchmark.main({ iterations = 15, warmup = 0, drop_first = 3 })
 end
 
 return M
