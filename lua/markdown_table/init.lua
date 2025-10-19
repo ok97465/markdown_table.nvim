@@ -5,6 +5,7 @@ local column = require("markdown_table.column")
 local navigation = require("markdown_table.navigation")
 local AlignmentService = require("markdown_table.alignment_service")
 local ui = require("markdown_table.ui")
+local converter = require("markdown_table.converter")
 
 local M = {}
 local configured = false
@@ -89,6 +90,13 @@ local function create_commands()
     M.insert_column_right(cmd.buf)
   end, {
     desc = "Insert a table column to the right of the cursor",
+  })
+
+  vim.api.nvim_create_user_command("MarkdownTableFromSelection", function(cmd)
+    M.convert_selection(cmd.buf, cmd.line1, cmd.line2)
+  end, {
+    range = true,
+    desc = "Convert the selected lines into a markdown table inserted after the selection",
   })
 end
 
@@ -235,6 +243,26 @@ end
 function M.create(buf)
   local target = resolve_buffer(buf)
   creator.interactive_create(target)
+end
+
+---Convert the given line range into a markdown table appended after the selection.
+---@param buf integer|nil
+---@param first_line integer|nil 1-based inclusive
+---@param last_line integer|nil 1-based inclusive
+---@return boolean
+function M.convert_selection(buf, first_line, last_line)
+  local target = resolve_buffer(buf)
+  local start_line = tonumber(first_line) or vim.fn.line("'<")
+  local end_line = tonumber(last_line) or vim.fn.line("'>")
+
+  if not start_line or start_line < 1 then
+    start_line = vim.fn.line(".")
+  end
+  if not end_line or end_line < 1 then
+    end_line = start_line
+  end
+
+  return converter.insert_from_range(target, start_line - 1, end_line - 1)
 end
 
 ---Programmatic creation helper for tests.

@@ -21,6 +21,16 @@ All keys are optional; the snippet shows the default configuration.
 - `:MarkdownTableToggle` – Enable or disable table mode for the current buffer.
 - `:MarkdownTableAlign` – Align the table under the cursor.
 - `:MarkdownTableCreate` – Prompt for rows/columns and insert a table skeleton.
+- `:MarkdownTableFromSelection` – Convert CSV or whitespace-delimited lines into a table appended after the selection.
+
+#### Converting selections
+Use the command on any visual or linewise range containing CSV or whitespace-delimited values:
+
+```vim
+:'<,'>MarkdownTableFromSelection
+```
+
+The plugin inserts a blank line (when needed), appends a Markdown table built from the selected fields, and aligns it using the standard formatter.
 
 ### Navigation
 `markdown_table.move_cell_left()` and `markdown_table.move_cell_right()` jump the cursor to the previous or next cell on the current table row. They return `true` on success so you can gracefully fall back to the original key behavior when no table cell is available.

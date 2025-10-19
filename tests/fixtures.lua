@@ -458,6 +458,48 @@ M.cases = {
       | Park | 77 |
     ]],
   },
+  {
+    name = "convert_selection_csv",
+    convert_selection = { line1 = 1, line2 = 3 },
+    input = {
+      "Name,Age,City",
+      "Alice,24,Seattle",
+      "Bob,31,\"New York\"",
+    },
+    expected = {
+      "Name,Age,City",
+      "Alice,24,Seattle",
+      "Bob,31,\"New York\"",
+      "",
+      "| Name  | Age | City     |",
+      "| ----- | --- | -------- |",
+      "| Alice | 24  | Seattle  |",
+      "| Bob   | 31  | New York |",
+    },
+  },
+  {
+    name = "convert_selection_whitespace",
+    convert_selection = { line1 = 2, line2 = 4 },
+    input = {
+      "ignore this line",
+      "Lang Score Level",
+      "Lua 98 Advanced",
+      "Rust 75 Intermediate",
+      "Python 88 Expert",
+    },
+    expected = {
+      "ignore this line",
+      "Lang Score Level",
+      "Lua 98 Advanced",
+      "Rust 75 Intermediate",
+      "",
+      "| Lang | Score | Level        |",
+      "| ---- | ----- | ------------ |",
+      "| Lua  | 98    | Advanced     |",
+      "| Rust | 75    | Intermediate |",
+      "Python 88 Expert",
+    },
+  },
 }
 
 for _, case in ipairs(M.cases) do

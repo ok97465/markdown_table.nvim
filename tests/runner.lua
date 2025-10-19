@@ -13,12 +13,16 @@ local CATEGORY_ORDER = {
   { key = "navigation", label = "Navigation cases" },
   { key = "cell_edits", label = "Cell edit cases" },
   { key = "creation", label = "Table creation cases" },
+  { key = "conversion", label = "Conversion cases" },
   { key = "detection", label = "Detection cases" },
 }
 
 local function classify_case(case)
   if case.create then
     return "creation"
+  end
+  if case.convert_selection then
+    return "conversion"
   end
   if case.move then
     return "navigation"
@@ -79,6 +83,17 @@ local function run_case(case)
     markdown_table.create_table(buf, case.create)
     if case.expected then
       local actual = vim.api.nvim_buf_get_lines(buf, 0, #case.expected, false)
+      assert_lines(case.name, actual, case.expected)
+    end
+    return
+  end
+
+  if case.convert_selection then
+    local range = case.convert_selection
+    markdown_table.convert_selection(buf, range.line1, range.line2)
+    if case.expected then
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      local actual = vim.api.nvim_buf_get_lines(buf, 0, line_count, false)
       assert_lines(case.name, actual, case.expected)
     end
     return
