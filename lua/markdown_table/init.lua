@@ -6,6 +6,7 @@ local navigation = require("markdown_table.navigation")
 local AlignmentService = require("markdown_table.alignment_service")
 local ui = require("markdown_table.ui")
 local converter = require("markdown_table.converter")
+local parser = require("markdown_table.parser")
 
 local M = {}
 local configured = false
@@ -97,6 +98,12 @@ local function create_commands()
   end, {
     range = true,
     desc = "Convert the selected lines into a markdown table inserted after the selection",
+  })
+
+  vim.api.nvim_create_user_command("MarkdownTableToCsv", function(cmd)
+    M.export_csv(cmd.buf)
+  end, {
+    desc = "Convert the markdown table at the cursor into CSV appended after the table",
   })
 end
 
@@ -263,6 +270,22 @@ function M.convert_selection(buf, first_line, last_line)
   end
 
   return converter.insert_from_range(target, start_line - 1, end_line - 1)
+end
+
+---Convert the table at the cursor into CSV lines appended after the table block.
+---@param buf integer|nil
+---@return boolean
+function M.export_csv(buf)
+  local target = resolve_buffer(buf)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row = cursor[1] - 1
+  local block = parser.block_at(target, row)
+  if not block then
+    vim.notify("markdown_table: cursor is not positioned on a table", vim.log.levels.WARN)
+    return false
+  end
+
+  return converter.insert_csv_after_block(target, block)
 end
 
 ---Programmatic creation helper for tests.

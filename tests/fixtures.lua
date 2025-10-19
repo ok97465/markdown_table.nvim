@@ -618,6 +618,26 @@ M.cases = {
       "Python 88 Expert",
     },
   },
+  {
+    name = "export_table_to_csv_basic",
+    cursor = 1,
+    export_csv = true,
+    input = [[
+      | Item | Quantity | Details |
+      | --- | ---: | --- |
+      | Widget | 3 | includes, extras |
+      | "Gadget" | 7 | Multi "region" |
+    ]],
+    expected = [[
+      | Item | Quantity | Details |
+      | --- | ---: | --- |
+      | Widget | 3 | includes, extras |
+      | "Gadget" | 7 | Multi "region" |
+      Item,Quantity,Details
+      Widget,3,"includes, extras"
+      """Gadget""",7,"Multi ""region"""
+    ]],
+  },
 }
 
 for _, case in ipairs(M.cases) do

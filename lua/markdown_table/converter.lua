@@ -7,6 +7,14 @@ local M = {}
 
 local align_service = AlignmentService.new()
 
+local function escape_csv_value(value)
+  local text = value or ""
+  if text:find('[",\r\n]') then
+    text = '"' .. text:gsub('"', '""') .. '"'
+  end
+  return text
+end
+
 local function trim(text)
   return (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
@@ -142,6 +150,41 @@ local function make_table_lines(rows, columns)
   return lines
 end
 
+---Build CSV lines for the supplied table block.
+---@param block table
+---@return string[]|nil, string|nil
+local function csv_lines_from_block(block)
+  local max_columns = 0
+  for _, row in ipairs(block.rows) do
+    if row.kind ~= "separator" and #row.cells > max_columns then
+      max_columns = #row.cells
+    end
+  end
+
+  if max_columns == 0 then
+    return nil, "markdown_table: table block does not contain any data rows"
+  end
+
+  local csv_lines = {}
+  for _, row in ipairs(block.rows) do
+    if row.kind ~= "separator" then
+      local values = {}
+      for col = 1, max_columns do
+        local cell = row.cells[col]
+        local text = cell and cell.text or ""
+        values[col] = escape_csv_value(text)
+      end
+      csv_lines[#csv_lines + 1] = table.concat(values, ",")
+    end
+  end
+
+  if #csv_lines == 0 then
+    return nil, "markdown_table: table block does not contain convertible rows"
+  end
+
+  return csv_lines, nil
+end
+
 ---Convert a range of lines into a markdown table inserted after the range.
 ---@param buf integer
 ---@param first_line integer 0-based inclusive
@@ -202,6 +245,28 @@ function M.insert_from_range(buf, first_line, last_line)
   if state.is_active(buf) then
     ui.show_indicator(buf)
   end
+  state.record_undo_state(buf)
+  return true
+end
+
+---Insert CSV lines derived from the supplied table block directly after the block.
+---@param buf integer
+---@param block table
+---@return boolean
+function M.insert_csv_after_block(buf, block)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return false
+  end
+
+  local csv_lines, err = csv_lines_from_block(block)
+  if not csv_lines then
+    vim.notify(err or "markdown_table: unable to convert table to CSV", vim.log.levels.WARN)
+    return false
+  end
+
+  local insertion_index = block.end_line
+  vim.api.nvim_buf_set_lines(buf, insertion_index, insertion_index, false, csv_lines)
+
   state.record_undo_state(buf)
   return true
 end

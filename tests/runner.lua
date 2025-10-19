@@ -24,6 +24,9 @@ local function classify_case(case)
   if case.convert_selection then
     return "conversion"
   end
+  if case.export_csv then
+    return "conversion"
+  end
   if case.move then
     return "navigation"
   end
@@ -91,6 +94,16 @@ local function run_case(case)
   if case.convert_selection then
     local range = case.convert_selection
     markdown_table.convert_selection(buf, range.line1, range.line2)
+    if case.expected then
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      local actual = vim.api.nvim_buf_get_lines(buf, 0, line_count, false)
+      assert_lines(case.name, actual, case.expected)
+    end
+    return
+  end
+
+  if case.export_csv then
+    markdown_table.export_csv(buf)
     if case.expected then
       local line_count = vim.api.nvim_buf_line_count(buf)
       local actual = vim.api.nvim_buf_get_lines(buf, 0, line_count, false)
