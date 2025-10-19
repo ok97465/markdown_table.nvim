@@ -170,7 +170,9 @@ local function run_case(case)
 
   if case.operation then
     local ok
-    if case.operation == "delete_column" then
+    if case.operation == "align" then
+      ok = markdown_table.align(buf)
+    elseif case.operation == "delete_column" then
       ok = markdown_table.delete_column(buf)
     elseif case.operation == "insert_left" then
       ok = markdown_table.insert_column_left(buf)

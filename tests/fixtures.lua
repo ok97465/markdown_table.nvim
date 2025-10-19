@@ -81,6 +81,124 @@ M.cases = {
     ]],
   },
   {
+    name = "align_multiple_tables_current_only",
+    cursor = { line = 8, col = 6 },
+    operation = "align",
+    input = [[
+      Intro line
+      | First|Table|
+      |--|--|
+      |A|100|
+
+      Between tables
+      | Name | Score |
+      | --- | ---: |
+      | Ann | 5 |
+      | Bobby | 12 |
+
+      Ending line
+    ]],
+    expected = [[
+      Intro line
+      | First|Table|
+      |--|--|
+      |A|100|
+
+      Between tables
+      | Name  |   Score |
+      | ----- | ------: |
+      | Ann   |       5 |
+      | Bobby |      12 |
+
+      Ending line
+    ]],
+  },
+  {
+    name = "delete_column_with_neighbor_tables",
+    cursor = { line = 10, col = 10 },
+    operation = "delete_column",
+    verify_aligned = true,
+    expect_active = true,
+    expect_active_after_undo = true,
+    input = [[
+      Header text
+      | ID | Name | Note |
+      | --- | --- | --- |
+      | A | Alpha | keep |
+      | B | Beta | drop |
+
+      Middle comment
+      | Product | Price | Stock |
+      | --- | ---: | --- |
+      | Pen | 500 | 20 |
+      | Paper | 1200 | 5 |
+      | Ruler | 300 | 15 |
+      Footer line
+    ]],
+    expected = [[
+      Header text
+      | ID | Name | Note |
+      | --- | --- | --- |
+      | A | Alpha | keep |
+      | B | Beta | drop |
+
+      Middle comment
+      | Product | Stock |
+      | ------- | ----- |
+      | Pen     | 20    |
+      | Paper   | 5     |
+      | Ruler   | 15    |
+      Footer line
+    ]],
+  },
+  {
+    name = "insert_column_right_with_neighbor_tables",
+    cursor = { line = 4, col = 9 },
+    operation = "insert_right",
+    verify_aligned = true,
+    expect_active = true,
+    expect_active_after_undo = true,
+    input = [[
+      Overview
+      | Task | Owner |
+      | --- | --- |
+      | Spec | Ann |
+      | Code | Bob |
+
+      Details
+      | First | Second |
+      | --- | --- |
+      | 1 | 2 |
+      | 3 | 4 |
+    ]],
+    undo_expected = [[
+      Overview
+      | Task | Owner |
+      | --- | --- |
+      | Spec | Ann |
+      | Code | Bob |
+
+      Details
+      | First | Second |
+      | --- | --- |
+      | 1 | 2 |
+      | 3 | 4 |
+    ]],
+    expected = [[
+      Overview
+      | Task | Owner |      |
+      | ---- | ----- | ---- |
+      | Spec | Ann   |      |
+      | Code | Bob   |      |
+
+      Details
+      | First | Second |
+      | --- | --- |
+      | 1 | 2 |
+      | 3 | 4 |
+    ]],
+  },
+  {
     name = "empty_cells",
     cursor = 1,
     expect_block = true,
