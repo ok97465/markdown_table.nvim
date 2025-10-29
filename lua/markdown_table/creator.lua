@@ -1,12 +1,16 @@
 local parser = require("markdown_table.parser")
-local AlignmentService = require("markdown_table.alignment_service")
+local deps = require("markdown_table.deps")
 local ui = require("markdown_table.ui")
 
 local M = {}
 
 local NBSP = (vim and vim.fn and vim.fn.nr2char(0xA0)) or string.char(0xC2, 0xA0)
 local placeholder_width = 6
-local align_service = AlignmentService.new()
+
+local function alignment_service()
+  -- Reuse the shared alignment service to minimize formatting discrepancies.
+  return deps.alignment_service()
+end
 
 local function sanitize_count(value, fallback)
   local num = tonumber(value)
@@ -58,7 +62,7 @@ local function align_block(buf, start_line)
   if not block then
     return
   end
-  align_service:align_block(buf, block, {
+  alignment_service():align_block(buf, block, {
     record_undo = false,
     on_success = function()
       ui.highlight_block(buf, block)

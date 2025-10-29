@@ -1,8 +1,12 @@
-local AlignmentService = require("markdown_table.alignment_service")
+local deps = require("markdown_table.deps")
 local position = require("markdown_table.position")
 
 local M = {}
-local align_service = AlignmentService.new()
+
+local function alignment_service()
+  -- Access the shared alignment service to ensure consistent formatting rules.
+  return deps.alignment_service()
+end
 
 local function clone_alignment(info)
   if type(info) ~= "table" then
@@ -70,7 +74,7 @@ local function alignment_template(block, index)
 end
 
 local function write_block(buf, block)
-  return align_service:align_block(buf, block, { record_undo = false })
+  return alignment_service():align_block(buf, block, { record_undo = false })
 end
 
 local function adjust_block(buf, cursor, mutate)

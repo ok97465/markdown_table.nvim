@@ -1,11 +1,14 @@
 local parser = require("markdown_table.parser")
-local AlignmentService = require("markdown_table.alignment_service")
+local deps = require("markdown_table.deps")
 local ui = require("markdown_table.ui")
 local state = require("markdown_table.state")
 
 local M = {}
 
-local align_service = AlignmentService.new()
+local function alignment_service()
+  -- Use the centralized alignment service so conversions obey user settings.
+  return deps.alignment_service()
+end
 
 local function escape_csv_value(value)
   local text = value or ""
@@ -229,7 +232,7 @@ function M.insert_from_range(buf, first_line, last_line)
   local table_start = insertion_index + (add_blank and 1 or 0)
   local block = parser.block_at(buf, table_start)
   if block then
-    align_service:align_block(buf, block, {
+    alignment_service():align_block(buf, block, {
       record_undo = false,
       on_success = function()
         ui.highlight_block(buf, block)

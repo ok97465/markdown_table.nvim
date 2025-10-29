@@ -1,12 +1,16 @@
 local state = require("markdown_table.state")
-local AlignmentService = require("markdown_table.alignment_service")
+local deps = require("markdown_table.deps")
 local ui = require("markdown_table.ui")
 
 local M = {}
 
 local group_name = "MarkdownTableMode"
 local debounce_handles = {}
-local align_service = AlignmentService.new()
+
+local function alignment_service()
+  -- Retrieve the shared alignment service to honour current configuration.
+  return deps.alignment_service()
+end
 
 ---Align the table under the cursor, returning true if it changed.
 ---@param buf integer
@@ -30,7 +34,8 @@ local function align_current(buf, win)
     target_win = vim.api.nvim_get_current_win()
   end
 
-  local changed = align_service:align_at_cursor(buf, {
+  local service = alignment_service()
+  local changed = service:align_at_cursor(buf, {
     win = target_win,
     replace_opts = { undojoin = true },
     on_success = function(_, block)
