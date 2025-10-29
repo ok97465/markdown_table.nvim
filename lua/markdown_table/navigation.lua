@@ -16,7 +16,8 @@ local function move(buf, cursor, delta)
     return false
   end
 
-  local cells = position.cell_targets(line)
+  local row = info.block.rows[info.row]
+  local cells = position.cell_targets(line, row)
   if #cells == 0 then
     return false
   end

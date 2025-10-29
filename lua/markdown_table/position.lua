@@ -4,7 +4,7 @@ local M = {}
 
 local function max_columns(block)
   local columns = 0
-  for _, row in ipairs(block.rows or {}) do
+  for _, row in ipairs(block.rows) do
     if row.cells and #row.cells > columns then
       columns = #row.cells
     end
@@ -34,50 +34,30 @@ local function column_from_cursor(block, cursor_row, cursor_col, total_columns)
   end
 
   local row_index = cursor_row - block.start_line + 1
-  if row_index < 1 or row_index > #block.lines then
+  if row_index < 1 then
     row_index = 1
+  elseif row_index > #block.rows then
+    row_index = #block.rows
   end
 
-  local line = block.lines[row_index]
-  if not line then
+  local row = block.rows[row_index]
+  if not row.cell_spans or #row.cell_spans == 0 then
     return nil
   end
 
   local col = math.max(cursor_col or 0, 0)
-  local upto
-  if col >= #line then
-    upto = line
-  else
-    upto = line:sub(1, col + 1)
+  for idx, span in ipairs(row.cell_spans) do
+    local start_col = span.start_col or 0
+    local end_col = span.end_col or start_col
+    if col < start_col then
+      return clamp_column(total_columns, idx)
+    end
+    if col < end_col then
+      return clamp_column(total_columns, idx)
+    end
   end
 
-  local pipe_count = select(2, upto:gsub("%|", ""))
-  if pipe_count == 0 then
-    return 1
-  end
-
-  return clamp_column(total_columns, pipe_count)
-end
-
-local function compute_entry_target(line, left_pipe, right_pipe)
-  if left_pipe + 1 >= right_pipe then
-    return left_pipe
-  end
-
-  local content = line:sub(left_pipe + 1, right_pipe - 1)
-  local first_non_space = content:find("%S")
-  if first_non_space then
-    return left_pipe + first_non_space
-  end
-
-  local fallback = left_pipe + 2
-  if fallback > right_pipe - 1 then
-    fallback = right_pipe - 1
-  end
-  if fallback < left_pipe + 1 then
-    fallback = left_pipe + 1
-  end
-  return fallback
+  return clamp_column(total_columns, #row.cell_spans)
 end
 
 function M.max_columns(block)
@@ -113,8 +93,8 @@ function M.locate(buf, cursor)
   local row_index = absolute_row - block.start_line + 1
   if row_index < 1 then
     row_index = 1
-  elseif row_index > #block.lines then
-    row_index = #block.lines
+  elseif row_index > #block.rows then
+    row_index = #block.rows
   end
 
   return {
@@ -130,38 +110,42 @@ function M.locate(buf, cursor)
   }
 end
 
-function M.cell_targets(line)
-  if type(line) ~= "string" then
+local function targets_from_spans(line, row)
+  local spans = row.cell_spans or {}
+  if #spans == 0 then
     return {}
   end
 
-  local pipe_positions = {}
-  local search_start = 1
-  while true do
-    local idx = line:find("|", search_start, true)
-    if not idx then
-      break
+  local result = {}
+  for idx, span in ipairs(spans) do
+    local start_col = span.start_col or 0
+    local end_col = span.end_col or start_col
+    if end_col < start_col then
+      end_col = start_col
     end
-    pipe_positions[#pipe_positions + 1] = idx
-    search_start = idx + 1
-  end
 
-  if #pipe_positions < 2 then
-    return {}
-  end
+    local entry = start_col
+    if type(line) == "string" and #line > 0 then
+      local segment = line:sub(start_col + 1, math.max(end_col, start_col))
+      local non_space = segment:find("%S")
+      if non_space then
+        entry = start_col + non_space - 1
+      elseif end_col > start_col then
+        entry = math.min(start_col + 1, end_col)
+      end
+    end
 
-  local cells = {}
-  for i = 1, #pipe_positions - 1 do
-    local left_pipe = pipe_positions[i]
-    local right_pipe = pipe_positions[i + 1]
-    local entry = compute_entry_target(line, left_pipe, right_pipe)
-    cells[i] = {
-      left = left_pipe - 1,
-      right = right_pipe - 1,
-      entry = entry - 1,
+    result[idx] = {
+      left = math.max(start_col - 1, 0),
+      right = math.max(end_col, start_col),
+      entry = entry,
     }
   end
-  return cells
+  return result
+end
+
+function M.cell_targets(line, row)
+  return targets_from_spans(line, row)
 end
 
 return M

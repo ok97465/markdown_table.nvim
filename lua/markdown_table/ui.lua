@@ -5,6 +5,17 @@ local indicator = require("markdown_table.indicator")
 
 local M = {}
 
+local function block_range(block)
+  if block and block.tree and block.tree.node then
+    local start_row, _, end_row = block.tree.node:range()
+    return start_row, end_row
+  end
+  if block then
+    return block.start_line, block.end_line
+  end
+  return nil, nil
+end
+
 ---Refresh highlight for the currently focused table, clearing when disabled.
 ---@param buf integer
 function M.refresh_highlight(buf)
@@ -23,12 +34,15 @@ function M.refresh_highlight(buf)
     local cursor = vim.api.nvim_win_get_cursor(0)
     local block = parser.block_at(buf, cursor[1] - 1)
     if block then
-      ranges = {
-        {
-          start_line = block.start_line,
-          end_line = block.end_line,
-        },
-      }
+      local start_line, end_line = block_range(block)
+      if start_line and end_line then
+        ranges = {
+          {
+            start_line = start_line,
+            end_line = end_line,
+          },
+        }
+      end
     end
   end
 
@@ -43,6 +57,11 @@ function M.highlight_block(buf, block)
     return
   end
 
+  local start_line, end_line = block_range(block)
+  if not start_line or not end_line then
+    return
+  end
+
   if not state.config().highlight then
     highlight.clear(buf)
     return
@@ -50,8 +69,8 @@ function M.highlight_block(buf, block)
 
   highlight.apply(buf, {
     {
-      start_line = block.start_line,
-      end_line = block.end_line,
+      start_line = start_line,
+      end_line = end_line,
     },
   })
 end
