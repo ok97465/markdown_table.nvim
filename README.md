@@ -1,6 +1,10 @@
 # markdown_table.nvim
 Neovim 0.11+ plugin for creating and aligning Markdown tables with ease.
 
+## Demo
+
+![table_align](/doc/talbe_align.gif)
+
 ## Getting Started
 ```lua
 require("markdown_table").setup({
