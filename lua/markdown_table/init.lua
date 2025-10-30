@@ -5,9 +5,11 @@ local column = require("markdown_table.column")
 local navigation = require("markdown_table.navigation")
 local converter = require("markdown_table.converter")
 local parser = require("markdown_table.parser")
+local textobject = require("markdown_table.textobject")
 
 local M = {}
 local configured = false
+local textobjects_configured = false
 
 local function create_commands()
   vim.api.nvim_create_user_command("MarkdownTableToggle", function(cmd)
@@ -62,6 +64,14 @@ end
 
 function M.setup(opts)
   state.setup(opts)
+
+  local config = state.config()
+  local textobject_config = config.textobject or {}
+  if textobject_config.enable ~= false and not textobjects_configured then
+    textobject.setup(textobject_config)
+    textobjects_configured = true
+  end
+
   if configured then
     mode.reapply_config()
     return
@@ -197,5 +207,7 @@ function M.move_cell_right(buf)
   local target = mode.resolve_buffer(buf)
   return navigation.move_right(target)
 end
+
+M.textobject = textobject
 
 return M

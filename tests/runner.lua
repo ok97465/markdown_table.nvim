@@ -7,6 +7,8 @@ local benchmark = require("tests.benchmark_align")
 
 local M = {}
 
+markdown_table.setup({})
+
 local CATEGORY_ORDER = {
   { key = "alignment", label = "Alignment cases" },
   { key = "column_ops", label = "Column operation cases" },
@@ -15,9 +17,13 @@ local CATEGORY_ORDER = {
   { key = "creation", label = "Table creation cases" },
   { key = "conversion", label = "Conversion cases" },
   { key = "detection", label = "Detection cases" },
+  { key = "textobjects", label = "Textobject cases" },
 }
 
 local function classify_case(case)
+  if case.textobject then
+    return "textobjects"
+  end
   if case.create then
     return "creation"
   end
@@ -117,6 +123,42 @@ local function run_case(case)
 
   if case.activate_before then
     markdown_table.enable(buf)
+  end
+
+  if case.textobject then
+    local spec = case.textobject
+    local register = spec.register or '"'
+    vim.fn.setreg(register, "")
+
+    local prefix = ""
+    if spec.register then
+      prefix = '"' .. spec.register
+    end
+
+    local target = spec.target == "around" and "a|" or "i|"
+    local command = spec.command or "y"
+    local keys = prefix .. command .. target
+    local term = vim.api.nvim_replace_termcodes(keys, true, false, true)
+    vim.api.nvim_feedkeys(term, "mx", false)
+    vim.wait(50)
+
+    if spec.insert then
+      local insert_term = vim.api.nvim_replace_termcodes(spec.insert, true, false, true)
+      vim.api.nvim_feedkeys(insert_term, "mx", false)
+      vim.wait(50)
+    end
+
+    if spec.expected_register ~= nil then
+      local actual = vim.fn.getreg(register)
+      assert_equal(actual, spec.expected_register, string.format("%s: unexpected register contents", case.name))
+    end
+
+    if case.expected then
+      local line_count = vim.api.nvim_buf_line_count(buf)
+      local actual = vim.api.nvim_buf_get_lines(buf, 0, line_count, false)
+      assert_lines(case.name, actual, case.expected)
+    end
+    return
   end
 
   if case.edit_cell then

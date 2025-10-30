@@ -577,6 +577,77 @@ M.cases = {
     ]],
   },
   {
+    name = "textobject_yank_inner_cell",
+    cursor = { line = 3, col = 2 },
+    textobject = {
+      command = "y",
+      target = "inner",
+      expected_register = "Alice",
+    },
+    input = [[
+      | Name | Age |
+      | --- | --- |
+      | Alice | 24 |
+      | Bob | 31 |
+    ]],
+  },
+  {
+    name = "textobject_yank_around_cell",
+    cursor = { line = 3, col = 2 },
+    textobject = {
+      command = "y",
+      target = "around",
+      expected_register = "| Alice | ",
+    },
+    input = [[
+      | Name | Age |
+      | --- | --- |
+      | Alice | 24 |
+      | Bob | 31 |
+    ]],
+  },
+  {
+    name = "textobject_change_inner_cell",
+    cursor = { line = 3, col = 2 },
+    textobject = {
+      command = "c",
+      target = "inner",
+      insert = "Zed<Esc>",
+    },
+    input = [[
+      | Name | Age |
+      | --- | --- |
+      | Alice | 24 |
+      | Bob | 31 |
+    ]],
+    expected = [[
+      | Name | Age |
+      | --- | --- |
+      | Zed | 24 |
+      | Bob | 31 |
+    ]],
+  },
+  {
+    name = "textobject_delete_inner_cell",
+    cursor = { line = 4, col = 2 },
+    textobject = {
+      command = "d",
+      target = "inner",
+    },
+    input = [[
+      | Name | Age |
+      | --- | --- |
+      | Alice | 24 |
+      | Bob | 31 |
+    ]],
+    expected = [[
+      | Name | Age |
+      | --- | --- |
+      | Alice | 24 |
+      |  | 31 |
+    ]],
+  },
+  {
     name = "convert_selection_csv",
     convert_selection = { line1 = 1, line2 = 3 },
     input = {

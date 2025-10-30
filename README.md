@@ -60,6 +60,21 @@ end, { expr = true, desc = "Markdown table: previous cell (Insert)" })
 
 Sample inputs used for testing live in `tests/fixtures.lua`, making it easy to add more scenarios.
 
+### Textobjects
+`markdown_table.nvim` ships Tree-sitter powered cell textobjects so you can use `yi|`, `ya|`, `ci|`, and `di|` to operate on the current table cell. Mappings default to `i|`/`a|` in operator-pending and visual modes. Disable or remap them via `textobject` options when calling `setup()`:
+
+```lua
+require("markdown_table").setup({
+  textobject = {
+    enable = true,
+    keymaps = {
+      inner = "i|",
+      around = "a|",
+    },
+  },
+})
+```
+
 ## Testing
 Run `make test` to execute the headless Neovim regression check.
 If Neovim lives under a custom name, export `NVIM=/path/to/nvim` before running the target.

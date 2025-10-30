@@ -10,6 +10,13 @@ local defaults = {
     text = "[Table Mode]",
     highlight = "Title",
   },
+  textobject = {
+    enable = true,
+    keymaps = {
+      inner = "i|",
+      around = "a|",
+    },
+  },
 }
 
 local buffers = setmetatable({}, { __mode = "k" })
